@@ -36,10 +36,29 @@ tabla
 
 ```
 
-
 ```{r Exportar excel}
 write_excel_csv2(tabla,"Embotelladora_nacional_entregas_2018.xls",delim = ",")
 ```
 
+## Problema 2
 
+```{r}
+
+moda <- function(v) {
+   uniqv <- unique(v)
+   uniqv[which.max(tabulate(match(v, uniqv)))]
+   
+}
+
+generador <- function(i, tamaño){
+  vector_1 <- sample(i, size = tamaño, replace = TRUE)
+  
+  return(
+   vector_1
+  )}
+
+moda_vectores = lapply(lapply(list(letters[1:27],c(FALSE,TRUE),c("a", "b", "c")), generador, 20), moda)
+
+(moda_vectores)
+```
 
