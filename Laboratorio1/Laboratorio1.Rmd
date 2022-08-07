@@ -9,12 +9,6 @@ output: rmarkdown::github_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
 ```{r Librerias}
 library(readxl)
 library(dplyr)
@@ -24,6 +18,8 @@ library(readr)
 
 ## Problema 1
 
+En la siguiente tabla sobre las entregas del año 2018 se puede ver 9 variables y 2,180 observaciones.
+
 ```{r Archivos y columa}
 archivos = list.files(pattern="*.xlsx")
 concatenacion <- function(x){
@@ -32,7 +28,7 @@ concatenacion <- function(x){
 
 tabla <- sapply(archivos, concatenacion) %>% bind_rows() %>% rename_with(~ c('Fecha'), 9)
 tabla <- subset(tabla, select = -c(TIPO,...10))
-tabla
+(tabla)
 
 ```
 
@@ -42,7 +38,7 @@ write_excel_csv2(tabla,"Embotelladora_nacional_entregas_2018.xls",delim = ",")
 
 ## Problema 2
 
-```{r}
+```{r moda}
 
 moda <- function(v) {
    uniqv <- unique(v)
@@ -62,3 +58,24 @@ moda_vectores = lapply(lapply(list(letters[1:27],c(FALSE,TRUE),c("a", "b", "c"))
 (moda_vectores)
 ```
 
+## Problema 3
+
+En la tabla siguiente tabla sobre el parque vehicular de Enero de 2019 se pueden ver 10 variables y 2,435,294 observaciones
+
+```{r Parque vehicular}
+library(readr)
+Parque_vehicular <- read_delim('INE_PARQUE_VEHICULAR_080219.txt', delim="|",show_col_types = FALSE , col_types = cols(
+  ANIO_ALZA = col_double(),
+  MES = col_character(),
+  NOMBRE_DEPARTAMENTO = col_character(),
+  NOMBRE_MUNICIPIO = col_character(),
+  MODELO_VEHICULO = col_character(),
+  LINEA_VEHICULO = col_character(),
+  TIPO_VEHICULO = col_character(),
+  USO_VEHICULO = col_character(),
+  MARCA_VEHICULO = col_character(),
+  CANTIDAD = col_double(),
+  ...11 = col_skip()))
+
+(Parque_vehicular)
+```
