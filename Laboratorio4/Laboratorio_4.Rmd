@@ -1,0 +1,332 @@
+---
+title: "Laboratorio4"
+author: "Javier Alejandro Mazaiegos Godoy"
+date: "2022-09-02"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(readr)
+library(dplyr)
+library(formattable)
+library(ggplot2)
+library(lubridate)
+library(DT)
+library(tm)
+library(wordcloud)
+library(highcharter)
+library(plotly)
+library(stringr)
+library(tidyr)
+```
+
+```{r lectura_csv}
+df <- read_delim("tabla_completa.csv",
+                 ",", escape_double = FALSE, trim_ws = TRUE)
+df$UNIDAD <- iconv(df$UNIDAD, to = 'UTF-8')
+df <- mutate_if(df, is.character, as.factor)
+```
+
+```{r}
+str(df)
+levels(df$CLIENTE)
+```
+
+## ¿Debemos invertir en la contratación de más personal?
+
+## row
+
+### Trabajadores
+
+```{r}
+#¿Cuántos trabajadores tenemos?
+numero_trabajadores = df %>%
+                      count(PILOTO) %>%
+                      summarise(No_trabajadores = length(PILOTO))
+```
+
+```{r}
+
+#¿Cuántos pedidos me estan haciendo aproximadamente al mes por cada tipo de UNIDAD?
+pedidos_unidad <- df %>%
+           select(MES,CANTIDAD) %>%
+            group_by(MES) %>%
+             summarise(
+                   panel = sum(CANTIDAD <= 500),
+                   camion_pequeno = sum(CANTIDAD > 500 & CANTIDAD <= 1000),
+                   camnion_grande = sum(CANTIDAD > 1000)
+             ) %>%
+            summarise(
+                  promedio_panel = mean(panel),
+                  promedio_camion_pequeno = mean(camion_pequeno),
+                  promedio_camnion_grande = mean(camnion_grande)
+            )
+
+
+#¿Las personas se dan a basto para cubrir la demanda?
+
+#¿Cuantos viajes hizo cada persona al mes?
+viajes_trabajadores <- df %>%
+                       select(MES,PILOTO) %>%
+                       group_by(MES,PILOTO) %>%
+                       tally()
+write_excel_csv2(viajes_trabajadores,"viajes_trabajadores.csv",delim = ",")
+
+
+
+#Se mira que personas estan reaizando mas de un viaje al dia
+demanda_persona = df %>%
+                  select(MES, PILOTO) %>%
+                  group_by(MES,PILOTO) %>%
+                  count(PILOTO, name = "viajes") %>%
+                  filter(viajes > 31)
+
+#Hay mas personas que demanda, por lo tanto las personas son suficientes para cubrir la demanda. 
+         
+  
+```
+
+## ¿Debemos invertir en la compra de más vehículos de distribución? ¿Cuántos y de que tipo?
+
+```{r}
+
+#La cantidad maxima que lleva cada unidad
+cantidad_unidad <- df %>%
+           select(UNIDAD,CANTIDAD) %>%
+           group_by(UNIDAD) %>%
+           summarise(max = max(CANTIDAD , na.rm=TRUE))
+cantidad_unidad
+write_excel_csv2(cantidad_unidad,"cantidad_unidad.csv",delim = ",")
+
+#Cuantos viajes hizo cada unidad en el mes
+viajes_unidad_mensual <- df %>%
+           select(MES,UNIDAD) %>%
+           group_by(MES,UNIDAD) %>%
+           tally(name = "Viajes")
+write_excel_csv2(viajes_unidad_mensual,"viajes_unidad_mensual.csv",delim = ",")
+
+
+#Cuantos viajes hizo cada unidad en todo el año
+viajes_unidad <- df %>%
+           select(CANTIDAD) %>%
+           summarise(
+                 panel = sum(CANTIDAD <= 500),
+                 camion_pequeno = sum(CANTIDAD > 500 & CANTIDAD <= 1000),
+                 camnion_grande = sum(CANTIDAD > 1000)
+           )
+write_excel_csv2(viajes_unidad,"viajes_unidad.csv",delim = ",")
+
+
+#Hubieron unidades que estuvieron haciendo el trabajo de otras unidades
+demanda_unidad <- df %>%
+           select(UNIDAD, CANTIDAD) %>%
+           summarise(
+                 panel = sum(CANTIDAD > 500 & UNIDAD == "panel"),
+                 camion_pequeno = sum(CANTIDAD > 1000 & UNIDAD == "Camion pequeno" ),
+                 camion_grande = sum(CANTIDAD < 1000 & UNIDAD == "Camion grande")
+           )
+write_excel_csv2(demanda_unidad,"demanda_unidad.csv",delim = ",")
+#No, no lo huieron
+           
+```
+
+## Las tarifas actuales ¿son aceptables por el cliente?
+
+```{r}
+#Cuanto aumenta el precio por unidad
+aumento_precio = df %>%
+                 select(CANTIDAD,Q) %>%
+                 group_by(CANTIDAD) %>%
+                 filter(! duplicated(CANTIDAD)) %>%
+                 arrange(CANTIDAD)
+aumento_precio$Q2 = lag(aumento_precio$Q,1)
+aumento_precio = aumento_precio[-1,] %>% summarise(Diferencia = Q-Q2)
+write_excel_csv2(aumento_precio,"aumento_precio.csv",delim = ",")
+                 
+#¿Cómo a sido el comportamiento de recompra por parte de los clientes a traves de los meses?
+comportamiento_recompra = df %>%
+                          select(MES, CLIENTE,CANTIDAD) %>%
+                          filter(!str_detect(CLIENTE,"DEVOLUCION")) %>%
+                          mutate(across('CLIENTE',str_replace_all,' [|]*Faltante', '')) %>%
+                          mutate(across('CLIENTE',str_replace_all,' [|]*FALTANTE', '')) %>%
+                          mutate(across('CLIENTE',str_replace_all,'[|]*Faltante', '')) %>%
+                          mutate(across('CLIENTE',str_replace_all,'[|]*FALTANTE', '')) %>%
+                          mutate(across('CLIENTE',str_replace_all,' [/]* Despacho a cliente', '')) %>%
+                          mutate(across('CLIENTE',str_replace_all,'[/]*Despacho a cliente', '')) %>%
+                          mutate_if(is.character,as.factor) %>%
+                          group_by(MES,CLIENTE) %>%
+                          summarise(Compra = sum(CANTIDAD),.groups = 'keep')
+write_excel_csv2(comportamiento_recompra,"comportamiento_recompra.csv",delim = ",")
+
+#¿Cómo a sido el comportamiento de recompra promedio a traves de los meses?
+comportamiento_recompra_promedio = df %>%
+                          select(MES, CLIENTE,CANTIDAD) %>%
+                          filter(!str_detect(CLIENTE,"DEVOLUCION")) %>%
+                          mutate(across('CLIENTE',str_replace_all,' [|]*Faltante', '')) %>%
+                          mutate(across('CLIENTE',str_replace_all,' [|]*FALTANTE', '')) %>%
+                          mutate(across('CLIENTE',str_replace_all,'[|]*Faltante', '')) %>%
+                          mutate(across('CLIENTE',str_replace_all,'[|]*FALTANTE', '')) %>%
+                          mutate(across('CLIENTE',str_replace_all,' [/]* Despacho a cliente', '')) %>%
+                          mutate(across('CLIENTE',str_replace_all,'[/]*Despacho a cliente', '')) %>%
+                          mutate_if(is.character,as.factor) %>%
+                          group_by(MES) %>%
+                          summarise(Compra = sum(CANTIDAD),.groups = 'keep')
+
+write_excel_csv2(comportamiento_recompra_promedio,"comportamiento_recompra_promedio.csv",delim = ",")
+
+
+                          
+```
+
+##¿Nos están robando los pilotos?
+
+```{r}
+#cuantos pilotos nos estan robando
+robos <- df%>%
+          select(CLIENTE,PILOTO) %>%
+          filter(str_detect(df$CLIENTE,"Faltante")) %>%
+          filter(! duplicated(PILOTO)) %>%
+          summarise(No_robos = length(PILOTO))
+
+#¿Qué pilotos nos están robando?
+robos_nombres <- df%>%
+          select(CLIENTE,PILOTO) %>%
+          filter(str_detect(df$CLIENTE,"Faltante")) %>%
+          select(PILOTO) %>%
+          filter(! duplicated(PILOTO)) 
+write_excel_csv2(robos_nombres,"robos_nombres.csv",delim = ",")
+
+#Cuantas veces nos robó cada piloto
+robo_piloto <- df %>%
+               select(CLIENTE,PILOTO) %>%
+               filter(str_detect(CLIENTE,"Faltante") | str_detect(CLIENTE,"FALTANTE")) %>%
+               group_by(PILOTO) %>%
+               tally(name = "No.robos")
+
+
+#¿En que viajes nos han robado?
+viajes_robados = df %>%
+                 filter(str_detect(CLIENTE,"Faltante") | str_detect(CLIENTE,"FALTANTE"))
+
+#¿Cantidad de viajes robados?
+cantidad_viajes_robados = df %>%
+                          filter(str_detect(CLIENTE,"Faltante") | str_detect(CLIENTE,"FALTANTE")) %>%
+                          summarise(Cantidad_viajes = n_distinct(COD_VIAJE))
+
+#¿Cuantas veces nos han robado por cada negocio?
+cliente_viaje_robado <- df %>%
+                        select(CLIENTE) %>%
+                        filter(str_detect(CLIENTE,"Faltante") | str_detect(CLIENTE,"FALTANTE")) %>%
+                        group_by(CLIENTE) %>%
+                        tally()
+
+#¿Cuantas veces nos han robado por cada negocio por mes?
+mes_cliente_viaje_robado <- df %>%
+                        select(MES,CLIENTE) %>%
+                        filter(str_detect(CLIENTE,"Faltante") | str_detect(CLIENTE,"FALTANTE")) %>%
+                        group_by(MES,CLIENTE) %>%
+                        tally()           
+
+
+```
+
+##Adicionalmente, quieren entender visualmente:
+
+```{r}
+#¿Cuál es el cliente que más nos compró durante el año?
+cliente_importante = df %>%
+                      select(CLIENTE,CANTIDAD, Q) %>%
+                      filter(!str_detect(CLIENTE,"DEVOLUCION")) %>%
+                      mutate(across('CLIENTE',str_replace_all,' [|]*Faltante', '')) %>%
+                      mutate(across('CLIENTE',str_replace_all,' [|]*FALTANTE', '')) %>%
+                      mutate(across('CLIENTE',str_replace_all,'[|]*Faltante', '')) %>%
+                      mutate(across('CLIENTE',str_replace_all,'[|]*FALTANTE', '')) %>%
+                      mutate(across('CLIENTE',str_replace_all,' [/]* Despacho a cliente', '')) %>%
+                      mutate(across('CLIENTE',str_replace_all,'[/]*Despacho a cliente', '')) %>%
+                      group_by(CLIENTE) %>%
+                      summarise(Cantidad = sum(CANTIDAD),
+                                Efectivo = sum(Q),
+                                .groups = 'keep') %>%
+                      arrange(desc(Cantidad)) %>%
+                      head(1)
+
+#Cantidad de compra por cliente por mes
+clientes_importantes_mensuales = df %>%
+                      select(MES, CLIENTE,CANTIDAD, Q) %>%
+                      filter(!str_detect(CLIENTE,"DEVOLUCION")) %>%
+                      mutate(across('CLIENTE',str_replace_all,' [|]*Faltante', '')) %>%
+                      mutate(across('CLIENTE',str_replace_all,' [|]*FALTANTE', '')) %>%
+                      mutate(across('CLIENTE',str_replace_all,'[|]*Faltante', '')) %>%
+                      mutate(across('CLIENTE',str_replace_all,'[|]*FALTANTE', '')) %>%
+                      mutate(across('CLIENTE',str_replace_all,' [/]* Despacho a cliente', '')) %>%
+                      mutate(across('CLIENTE',str_replace_all,'[/]*Despacho a cliente', '')) %>%
+                      group_by(MES,CLIENTE) %>%
+                      summarise(Cantidad = sum(CANTIDAD),
+                                Efectivo = sum(Q),
+                                .groups = 'keep') %>%
+                      arrange(MES)
+
+
+#Cantidad de compra por cliente en todo el año
+clientes_importantes_anuales = df %>%
+                      select(CLIENTE,CANTIDAD, Q) %>%
+                      filter(!str_detect(CLIENTE,"DEVOLUCION")) %>%
+                      mutate(across('CLIENTE',str_replace_all,' [|]*Faltante', '')) %>%
+                      mutate(across('CLIENTE',str_replace_all,' [|]*FALTANTE', '')) %>%
+                      mutate(across('CLIENTE',str_replace_all,'[|]*Faltante', '')) %>%
+                      mutate(across('CLIENTE',str_replace_all,'[|]*FALTANTE', '')) %>%
+                      mutate(across('CLIENTE',str_replace_all,' [/]* Despacho a cliente', '')) %>%
+                      mutate(across('CLIENTE',str_replace_all,'[/]*Despacho a cliente', '')) %>%
+                      group_by(CLIENTE) %>%
+                      summarise(Cantidad = sum(CANTIDAD),
+                                Efectivo = sum(Q),
+                                .groups = 'keep') %>%
+                      arrange(desc(Cantidad))
+
+#write_excel_csv2(clientes_importantes_anuales,"exportar_excel.xls",delim = ",")
+
+#¿Cuanto es de la casa matriz y cuanto es de sus clientes?
+clientes_importantes_anuales = df %>%
+                      select(CLIENTE,CANTIDAD, Q) %>%
+                      filter(!str_detect(CLIENTE,"DEVOLUCION")) %>%
+                      mutate(across('CLIENTE',str_replace_all,' [|]*Faltante', '')) %>%
+                      mutate(across('CLIENTE',str_replace_all,' [|]*FALTANTE', '')) %>%
+                      mutate(across('CLIENTE',str_replace_all,'[|]*Faltante', '')) %>%
+                      mutate(across('CLIENTE',str_replace_all,'[|]*FALTANTE', '')) %>%
+                      group_by(CLIENTE) %>%
+                      summarise(Cantidad = sum(CANTIDAD),
+                                Efectivo = sum(Q),
+                                .groups = 'keep') %>%
+                      arrange(desc(Cantidad))
+
+
+
+```
+
+##Mejores pilotos y transportes más efectivos
+
+```{r}
+#¿Pilotos que menos robaron?
+robo_piloto <- df %>%
+               select(CLIENTE,PILOTO) %>%
+               filter(str_detect(CLIENTE,"Faltante") | str_detect(CLIENTE,"FALTANTE")) %>%
+               group_by(PILOTO) %>%
+               tally(name = "No.robos") %>%
+               arrange(No.robos)
+
+# Piloto que más viajes realizó
+piloto_viajes = df %>%
+                  select(PILOTO) %>%
+                  group_by(PILOTO) %>%
+                  count(PILOTO, name = "viajes") %>%
+                  arrange(desc(viajes))
+
+#Transporte que más viajes realizó
+cantidad_unidad <- df %>%
+           select(UNIDAD,) %>%
+           group_by(UNIDAD) %>%
+           tally(name = "No.viajes")
+cantidad_unidad
+
+```
