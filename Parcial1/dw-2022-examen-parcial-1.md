@@ -176,7 +176,7 @@ rentable
     ##   <chr>       <dbl>
     ## 1 a17a7558   19818.
 
-El cliente más retable es bf1e94e9 porque es el que más ventas ha
+El cliente más retable es a17a7558 porque es el que más ventas ha
 tenido.
 
 ## B

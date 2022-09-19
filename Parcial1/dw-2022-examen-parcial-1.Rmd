@@ -133,7 +133,7 @@ rentable
 
 ```
 
-El cliente más retable es bf1e94e9 porque es el que más ventas ha tenido. 
+El cliente más retable es a17a7558 porque es el que más ventas ha tenido. 
 
 
 ## B
