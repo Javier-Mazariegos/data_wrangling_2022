@@ -90,7 +90,7 @@ B. Estrategia de negocio ha decidido que ya no operará en aquellos territorios 
 7. ¿Qué pasa si quiero agregar una nueva categoría a un factor que no se encuentra en los niveles existentes?
    No se puede agregar directamente una nueva categoria, hay que convertir el factor a una lista, agregar el nuevo valor y luego convertir a factor.
 
-9. En SQL, ¿para qué utilizamos el keyword `HAVING`?
+9  En SQL, ¿para qué utilizamos el keyword `HAVING`?
    #El having en SQL se utiliza cuando se quiere filtrar por agregación, es decir, después de haber agrupado los datos con 
    la funcion GROUP_BY()
 

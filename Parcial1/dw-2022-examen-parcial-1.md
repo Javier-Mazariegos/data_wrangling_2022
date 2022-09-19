@@ -121,9 +121,9 @@ territorios cuyas pérdidas sean “considerables”. Bajo su criterio,
     directamente una nueva categoria, hay que convertir el factor a una
     lista, agregar el nuevo valor y luego convertir a factor.
 
-8.  En SQL, ¿para qué utilizamos el keyword `HAVING`? \#El having en SQL
-    se utiliza cuando se quiere filtrar por agregación, es decir,
-    después de haber agrupado los datos con la funcion GROUP_BY()
+9 En SQL, ¿para qué utilizamos el keyword `HAVING`? \#El having en SQL
+se utiliza cuando se quiere filtrar por agregación, es decir, después de
+haber agrupado los datos con la funcion GROUP_BY()
 
 Extra: ¿Cuántos posibles exámenes de 5 preguntas se pueden realizar
 utilizando como banco las diez acá presentadas? (responder con código de
