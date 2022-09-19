@@ -113,12 +113,27 @@ library(dplyr)
 ```{r }
 ###resuelva acá
 parcial_anonimo <- readRDS("parcial_anonimo.rds")
-parcial_anonimo %>% group_by(Cliente)
+#repetidos <- parcial_anonimo %>% distinct(Pais)
+pais1 <- parcial_anonimo %>% filter(Pais =="4046ee34")
+pais2 <- parcial_anonimo %>% filter(Pais =="4f03bd9b")
+
+mas_de_uno <- pais1 %>%
+              filter(Cliente %in% pais2$Cliente)
+
+rentable <- parcial_anonimo %>%
+              filter(Cliente %in% mas_de_uno$Cliente) %>%
+              group_by(Cliente) %>%
+              summarise(rentable = sum(Venta)) %>%
+              slice(which.max(rentable))
+rentable
+
+                                
+
                     
 
 ```
 
-
+El cliente más retable es bf1e94e9 porque es el que más ventas ha tenido. 
 
 
 ## B
