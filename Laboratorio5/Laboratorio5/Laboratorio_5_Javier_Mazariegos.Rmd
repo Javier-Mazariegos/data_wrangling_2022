@@ -1,0 +1,314 @@
+---
+title: "Laboratorio5_Javier_Mazariegos"
+author: "Javier Alejandro Mazaiegos Godoy"
+date: "2022-09-28"
+output: rmarkdown::github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(lubridate)
+library(readxl)
+library(dplyr)
+library(stringr)
+library(nycflights13)
+library(tidyr)
+library(ggplot2)
+```
+
+
+# Parte 1: Predecir un eclipse solar
+```{r}
+eclipse_historico = ymd_hms("2017-08-21 18:26:42")
+synodic_month = days(29) + hours(12) + minutes(44) + seconds(3)
+saros = 223 * synodic_month
+siguiente_eclipse = eclipse_historico + saros
+```
+
+```{r}
+siguiente_eclipse
+```
+
+# Parte 2: Agrupaciones y operaciones con fechas
+```{r}
+df <- readxl::read_excel('data.xlsx')
+str(df)
+```
+
+```{r}
+#as.Date(43020, origin = "1899-12-30")
+#as_date(strptime("19-03-17",format = "%d-%m-%y"))
+formato_fecha = df %>% filter(str_detect(`Fecha Creación`,"-") == TRUE)
+formato_fecha$`Fecha Creación` = as_date(strptime(formato_fecha$`Fecha Creación`,format = "%d-%m-%y"))
+formato_fecha$`Fecha Final` = as_date(strptime(formato_fecha$`Fecha Final`,format = "%d-%m-%y"))
+
+formato_numero = df %>% filter(str_detect(`Fecha Creación`,"-") == FALSE ) 
+class(formato_numero$`Fecha Creación`) = "numeric"
+class(formato_numero$`Fecha Final`) = "numeric"
+formato_numero$`Fecha Creación`= as.Date(formato_numero$`Fecha Creación`,origin = "1899-12-30")
+formato_numero$`Fecha Final`= as.Date(formato_numero$`Fecha Final`,origin = "1899-12-30")
+
+unido = bind_rows(formato_numero,formato_fecha)
+
+```
+
+## 2.1	¿En qué meses existe una mayor cantidad de llamadas por código?
+
+```{r}
+#1.	¿En qué meses existe una mayor cantidad de llamadas por código?
+unido = as.data.frame(unido)
+meses_codigo = unido %>%
+               filter(Call == 1) %>%
+               select(Cod,`Fecha Creación`) %>%
+               group_by(Cod,mes = lubridate::month(`Fecha Creación`)) %>%
+               count(Cod,name = "No_llamadas") %>%
+               group_by(Cod) %>%
+               arrange(desc(No_llamadas))
+```
+
+```{r}
+meses_codigo
+```
+
+## 2.2 ¿Qué día de la semana es el más ocupado?
+
+```{r}
+# 2.	¿Qué día de la semana es el más ocupado?
+actividad_por_semana = unido %>% 
+                       group_by(dia = wday(`Fecha Creación`,label = TRUE, abbr = FALSE)) %>%
+                       count(dia, name = "Cantidad_ocupación") %>%
+                       arrange(desc(Cantidad_ocupación))
+```
+
+Se puede observar que el dia de la semana que más ocupado está el call center es el domingo
+
+```{r}
+actividad_por_semana
+```
+
+## 2.3 ¿Qué mes es el más ocupado?
+
+```{r}
+# 3.	¿Qué mes es el más ocupado?
+actividad_por_mes = unido %>% 
+                       group_by(mes = month(`Fecha Creación`,label = TRUE, abbr = FALSE)) %>%
+                       count(mes, name = "Cantidad_ocupación") %>%
+                       arrange(desc(Cantidad_ocupación))
+```
+
+Se puede observar que el mes que más ocupado está el call center es en Marzo
+
+```{r}
+actividad_por_mes
+```
+
+## 2.4 ¿Existe una concentración o estacionalidad en la cantidad de llamadas?
+
+Se puede ver una mayor concentración de llamadas en el mes de Marzo y en el mes de Octubre, además, llama la atención la poca concentración de llamadas que hay en febrero.
+
+```{r}
+# 4.	¿Existe una concentración o estacionalidad en la cantidad de llamadas?
+actividad_por_mes = unido %>% 
+                       group_by(mes = month(`Fecha Creación`)) %>%
+                       count(mes, name = "Cantidad_ocupación")
+
+gg <- ggplot(actividad_por_mes, aes(x=mes, y=Cantidad_ocupación)) + 
+  geom_point(aes(col=mes, size=Cantidad_ocupación)) + 
+  geom_smooth(method="loess", se=F) + 
+  labs(subtitle="Ocupación por mes", 
+       y="Ocupación", 
+       x="Mes", 
+       title="Concentración de llamadas en call center") +
+  scale_x_continuous(breaks = c(1:12))
+
+plot(gg)
+```
+
+## 2.5 ¿Cuántos minutos dura la llamada promedio?
+
+```{r}
+#5.	¿Cuántos minutos dura la llamada promedio?
+unido$`Hora Creación`<- hms(format(unido$`Hora Creación`, format="%H:%M:%S"))
+unido$`Hora Final`<- hms(format(unido$`Hora Final`, format="%H:%M:%S"))
+unido <- na.omit(unido)
+unido$duracion <- as.double(unido$`Hora Final` - unido$`Hora Creación`, units="minutes")
+llamadas <- unido %>% filter(Call == 1)
+llamada_promedio = mean(llamadas$duracion)
+```
+
+```{r}
+llamada_promedio
+```
+
+## 2.6 Realice una tabla de frecuencias con el tiempo de llamada.
+
+```{r}
+frecuencias <- unido %>%
+               filter(Call == 1) %>%
+               group_by(duracion) %>%
+               count(duracion,name = "Cantidad de llamadas")
+```
+
+```{r}
+frecuencias
+```
+
+# Parte 3: Signo Zodiacal
+
+```{r}
+fun <- function(fecha_n){
+  
+  fecha_n = make_date(year = 2022, month = month(fecha_n), day = day(fecha_n))
+  
+  if(fecha_n %within% interval(as_date("01-01-2022",format='%d-%m-%Y'),as_date("20-01-2022",format='%d-%m-%Y'))){
+    return("Capricornio")
+  }
+  else if(fecha_n %within% interval(as_date("21-01-2022",format='%d-%m-%Y'),as_date("19-02-2022",format='%d-%m-%Y'))){
+    return("Acuario")
+  }
+  else if(fecha_n %within% interval(as_date("20-02-2022",format='%d-%m-%Y'),as_date("20-03-2022",format='%d-%m-%Y'))){
+    return("Piscis")
+  }
+  else if(fecha_n %within% interval(as_date("21-03-2022",format='%d-%m-%Y'),as_date("20-04-2022",format='%d-%m-%Y'))){
+    return("Aries")
+  }
+  else if(fecha_n %within% interval(as_date("21-04-2022",format='%d-%m-%Y'),as_date("21-05-2022",format='%d-%m-%Y'))){
+    return("Tauro")
+  }
+  else if(fecha_n %within% interval(as_date("22-05-2022",format='%d-%m-%Y'),as_date("21-06-2022",format='%d-%m-%Y'))){
+    return("Géminis")
+  }
+  else if(fecha_n %within% interval(as_date("22-06-2022",format='%d-%m-%Y'),as_date("22-07-2022",format='%d-%m-%Y'))){
+    return("Cáncer")
+  }
+  else if(fecha_n %within% interval(as_date("23-07-2022",format='%d-%m-%Y'),as_date("22-08-2022",format='%d-%m-%Y'))){
+    return("Leo")
+  }
+  else if(fecha_n %within% interval(as_date("23-08-2022",format='%d-%m-%Y'),as_date("22-09-2022",format='%d-%m-%Y'))){
+    return("Virgo")
+  }
+  else if(fecha_n %within% interval(as_date("23-09-2022",format='%d-%m-%Y'),as_date("22-10-2022",format='%d-%m-%Y'))){
+    return("Libra")
+  }
+  else if(fecha_n %within% interval(as_date("23-10-2022",format='%d-%m-%Y'),as_date("22-11-2022",format='%d-%m-%Y'))){
+    return("Escorpio")
+  }
+  else if(fecha_n %within% interval(as_date("23-11-2022",format='%d-%m-%Y'),as_date("21-12-2022",format='%d-%m-%Y'))){
+    return("Sagitario")
+  }
+  else if(fecha_n %within% interval(as_date("22-12-2022",format='%d-%m-%Y'),as_date("31-12-2022",format='%d-%m-%Y'))){
+    return("Capricornio")
+  }
+  else{
+    return("Error")
+  }
+  
+  
+  
+}
+```
+
+```{r}
+#Realice una función que reciba como input su fecha de nacimiento y devuelva como output su signo zodiacal.
+
+#fecha_nacimiento = readline(prompt = "Ingrese su edad en el siguiente fromato (dia-mes-año) : ");
+fecha_nacimiento = "05-04-2202"
+fecha_nacimiento = dmy(fecha_nacimiento,format = "%d-%m-%y")
+fun(as.Date(fecha_nacimiento[1]))
+```
+
+# Parte 4: Flights
+
+## 1.	Genere 4 nuevas columnas para cada variable con formato fecha y hora.
+
+```{r}
+tabla = flights
+# 1.	Genere 4 nuevas columnas para cada variable con formato fecha y hora.
+
+#dep_time
+tiempo_uno = tabla %>% filter(dep_time < 1000)
+tiempo_dos = tabla %>% filter(dep_time >=1000)
+
+tiempo_uno$hora <- substr(tiempo_uno$dep_time,1,1)
+tiempo_uno$minuto <- substr(tiempo_uno$dep_time,2,3)
+
+tiempo_dos$hora <- substr(tiempo_dos$dep_time,1,2)
+tiempo_dos$minuto <- substr(tiempo_dos$dep_time,3,4)
+
+tiempo_total = bind_rows(tiempo_uno,tiempo_dos)
+class(tiempo_total$hora) = "integer"
+
+tiempo_total$dep_time_hora = make_datetime(year = tiempo_total$year, month = tiempo_total$month, day = tiempo_total$day, hour = tiempo_total$hora, min = tiempo_total$minuto)
+
+tiempo_total
+
+```
+
+```{r}
+tiempo_uno = tiempo_total %>% filter(arr_time < 1000)
+tiempo_dos = tiempo_total %>% filter(arr_time >=1000)
+
+tiempo_uno$hora <- substr(tiempo_uno$arr_time,1,1)
+tiempo_uno$minuto <- substr(tiempo_uno$arr_time,2,3)
+
+tiempo_dos$hora <- substr(tiempo_dos$arr_time,1,2)
+tiempo_dos$minuto <- substr(tiempo_dos$arr_time,3,4)
+
+tiempo_total = bind_rows(tiempo_uno,tiempo_dos)
+class(tiempo_total$hora) = "integer"
+
+tiempo_total$arr_time_hora = make_datetime(year = tiempo_total$year, month = tiempo_total$month, day = tiempo_total$day, hour = tiempo_total$hora, min = tiempo_total$minuto)
+
+tiempo_total
+```
+
+```{r}
+tiempo_uno = tiempo_total %>% filter(sched_dep_time < 1000)
+tiempo_dos = tiempo_total %>% filter(sched_dep_time >=1000)
+
+tiempo_uno$hora <- substr(tiempo_uno$sched_dep_time,1,1)
+tiempo_uno$minuto <- substr(tiempo_uno$sched_dep_time,2,3)
+
+tiempo_dos$hora <- substr(tiempo_dos$sched_dep_time,1,2)
+tiempo_dos$minuto <- substr(tiempo_dos$sched_dep_time,3,4)
+
+tiempo_total = bind_rows(tiempo_uno,tiempo_dos)
+class(tiempo_total$hora) = "integer"
+
+tiempo_total$sched_dep_time_hora = make_datetime(year = tiempo_total$year, month = tiempo_total$month, day = tiempo_total$day, hour = tiempo_total$hora, min = tiempo_total$minuto)
+
+tiempo_total
+```
+
+```{r}
+tiempo_uno = tiempo_total %>% filter(sched_arr_time  < 1000)
+tiempo_dos = tiempo_total %>% filter(sched_arr_time  >=1000)
+
+tiempo_uno$hora <- substr(tiempo_uno$sched_arr_time ,1,1)
+tiempo_uno$minuto <- substr(tiempo_uno$sched_arr_time ,2,3)
+
+tiempo_dos$hora <- substr(tiempo_dos$sched_arr_time ,1,2)
+tiempo_dos$minuto <- substr(tiempo_dos$sched_arr_time ,3,4)
+
+tiempo_total = bind_rows(tiempo_uno,tiempo_dos)
+class(tiempo_total$hora) = "integer"
+
+tiempo_total$sched_arr_time_hora = make_datetime(year = tiempo_total$year, month = tiempo_total$month, day = tiempo_total$day, hour = tiempo_total$hora, min = tiempo_total$minuto)
+
+tiempo_total
+```
+
+## 4.2	Encuentre el delay total que existe en cada vuelo. El delay total se puede encontrar sumando el delay de la salida y el delay de la entrada.
+
+```{r}
+tiempo_total$delay_total = difftime(tiempo_total$dep_time_hora,tiempo_total$sched_dep_time_hora) + difftime(tiempo_total$arr_time_hora, tiempo_total$sched_arr_time_hora)
+```
+
+```{r}
+tiempo_total %>% select(delay_total)
+```
+
+
